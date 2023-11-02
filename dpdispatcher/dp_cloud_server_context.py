@@ -38,30 +38,8 @@ class BohriumContext(BaseContext):
         self.init_remote_root = remote_root
         self.temp_local_root = os.path.abspath(local_root)
         self.remote_profile = remote_profile
-        ticket = os.environ.get("BOHR_TICKET", None)
-        email = remote_profile.get("email", None)
-        phone = remote_profile.get("phone", None)
-        password = remote_profile.get("password")
         os.makedirs(DP_CLOUD_SERVER_HOME_DIR, exist_ok=True)
-
-        if ticket is not None:
-            self.api = Client(ticket=ticket)
-            return
-
-        if email is None and phone is None:
-            raise ValueError(
-                "can not find email/phone number in remote_profile, please check your machine file."
-            )
-        if password is None:
-            raise ValueError(
-                "can not find password in remote_profile, please check your machine file."
-            )
-        # account 作为登录账号
-        account = email
-        if email is None:
-            account = phone
-
-        self.api = Client(account, password)
+        self.api = Client(source_code=remote_profile.get("source_code"))
 
     @classmethod
     def load_from_dict(cls, context_dict):
@@ -169,10 +147,8 @@ class BohriumContext(BaseContext):
             job_hashs[jid] = job.job_hash
             jobinfo = self.api.get_job_detail(jid)
             job_result.append(jobinfo)
-        # if group_id is not None:
-        #     job_result = self.api.get_tasks_list(group_id)
         for each in job_result:
-            if "resultUrl" in each and each["resultUrl"] != "" and each["status"] == 2:
+            if "result_url" in each and each["result_url"] != "" and each["status"] == 2:
                 job_hash = ""
                 if each["id"] not in job_hashs:
                     dlog.info(
@@ -197,7 +173,7 @@ class BohriumContext(BaseContext):
                 target_result_zip, self.local_root
             ):
                 continue
-            self.api.download_from_url(info["resultUrl"], target_result_zip)
+            self.api.download_from_url(info["result_url"], target_result_zip)
             zip_file.unzip_file(target_result_zip, out_dir=self.local_root)
             self._backup(self.local_root, target_result_zip)
         self._clean_backup(
@@ -295,8 +271,7 @@ class BohriumContext(BaseContext):
                 "remote_profile",
                 dict,
                 [
-                    Argument("email", str, optional=True, doc="Email"),
-                    Argument("password", str, optional=True, doc="Password"),
+                    Argument("source_code", str, optional=False, doc="source code"),
                     Argument(
                         "program_id",
                         int,

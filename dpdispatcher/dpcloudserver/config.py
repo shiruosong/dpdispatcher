@@ -2,7 +2,7 @@ import os
 
 HTTP_TIME_OUT = 30
 
-API_HOST = os.environ.get("DPDISPATCHER_LEBESGUE_API_HOST", "https://bohrium.dp.tech/")
+API_HOST = os.environ.get("DPDISPATCHER_LEBESGUE_API_HOST", "https://lbg-api.dp.tech/")
 API_LOGGER_STACK_INFO = os.environ.get("API_LOGGER_STACK_INFO", "")
 ALI_STS_ENDPOINT = os.environ.get(
     "DPDISPATCHER_LEBESGUE_ALI_STS_ENDPOINT", "http://oss-cn-shenzhen.aliyuncs.com"

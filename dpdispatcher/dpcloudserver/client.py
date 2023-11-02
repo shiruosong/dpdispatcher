@@ -26,18 +26,13 @@ class RequestInfoException(Exception):
 
 class Client:
     def __init__(
-        self, email=None, password=None, debug=False, ticket=None, base_url=API_HOST
+        self, source_code, debug=False, base_url=API_HOST
     ):
+        self.source_code = source_code
         self.debug = debug
         self.debug = os.getenv("LBG_CLI_DEBUG_PRINT", debug)
-        self.config = {}
-        self.token = ""
-        self.user_id = None
-        self.config["email"] = email
-        self.config["password"] = password
         self.base_url = base_url
         self.last_log_offset = 0
-        self.ticket = ticket
 
     def post(self, url, data=None, header=None, params=None, retry=5):
         return self._req(
@@ -52,11 +47,7 @@ class Client:
         url = urllib.parse.urljoin(self.base_url, url)
         if header is None:
             header = {}
-        if not self.token:
-            self.refresh_token()
-        self.ticket = os.environ.get("BOHR_TICKET", "")
-        header["Authorization"] = f"jwt {self.token}"
-        header["Brm-Ticket"] = self.ticket
+        header["sourceCode"] = self.source_code
         resp_code = None
         err = None
         for i in range(retry):
@@ -88,59 +79,10 @@ class Client:
             result = resp.json()
             if result["code"] == "0000" or result["code"] == 0:
                 return result.get("data", {})
-            else:
-                self.token = ""
-                self.refresh_token()
-                err = result.get("message") or result.get("error")
         raise RequestInfoException(resp_code, short_url, err)
 
-    def _login(self):
-        if self.config["email"] is None or self.config["password"] is None:
-            raise RequestInfoException(
-                "can not find login information, please check your config"
-            )
-        post_data = {"email": self.config["email"], "password": self.config["password"]}
-        resp = self.post("/account/login", post_data)
-        self.token = resp["token"]
-        # print(self.token)
-        self.user_id = resp["user_id"]
-
-    def refresh_token(self, retry=3):
-        self.ticket = os.environ.get("BOHR_TICKET", "")
-        if self.ticket:
-            return
-        url = "/account/login"
-        post_data = {"email": self.config["email"], "password": self.config["password"]}
-        resp_code = None
-        err = None
-        for i in range(retry):
-            resp = requests.post(
-                urljoin(API_HOST, url),
-                json=post_data,
-                timeout=HTTP_TIME_OUT,
-            )
-            resp_code = resp.status_code
-            if not resp.ok:
-                if self.debug:
-                    print(f"login retry: {i},statusCode: {resp.status_code}")
-                try:
-                    result = resp.json()
-                    err = result.get("error")
-                except Exception:
-                    pass
-                time.sleep(1 * i)
-                continue
-
-            result = resp.json()
-            if result["code"] == RETCODE.OK or result["code"] == 0:
-                self.token = result["data"]["token"]
-                return
-        raise RequestInfoException(resp_code, url, err)
-
     def _get_oss_bucket(self, endpoint, bucket_name):
-        #  res = get("/tools/sts_token", {})
         res = self.get("/data/get_sts_token", {})
-        # print('debug>>>>>>>>>>>>>', res)
         dlog.debug(f"debug: _get_oss_bucket: res:{res}")
         auth = oss2.StsAuth(
             res["AccessKeyId"], res["AccessKeySecret"], res["SecurityToken"]
@@ -158,7 +100,7 @@ class Client:
         for retry_count in range(3):
             try:
                 ret = requests.get(
-                    url, headers={"Authorization": "jwt " + self.token}, stream=True
+                    url, stream=True
                 )
             except Exception as e:
                 dlog.error(f"request error {e}", stack_info=ENABLE_STACK)
@@ -214,7 +156,7 @@ class Client:
             "oss_path": oss_path,
         }
         if program_id is not None:
-            post_data["project_id"] = program_id
+            post_data["program_id"] = program_id
         if group_id is not None:
             post_data["job_group_id"] = group_id
         for k, v in input_data.items():
@@ -230,36 +172,20 @@ class Client:
         )
         if log:
             if isinstance(log, str):
-                post_data["log_files"] = [log]
+                post_data["log_file"] = [log]
         if (
             "checkpoint_files" in post_data
             and post_data["checkpoint_files"] == "sync_files"
         ):
             post_data["checkpoint_files"] = ["*"]
-        camel_data = {self._camelize(k): v for k, v in post_data.items()}
-        ret = self.post("/brm/v2/job/add", camel_data)
-        group_id = ret.get("jobGroupId")
-        return ret["jobId"], group_id
-
-    def _camelize(self, str_or_iter):
-        # code reference from https://pypi.org/project/pyhumps/
-        regex = re.compile(r"(?<=[^\-_\s])[\-_\s]+[^\-_\s]")
-
-        def _is_none(_in):
-            return "" if _in is None else _in
-
-        s = str(_is_none(str_or_iter))
-        if s.isupper() or s.isnumeric():
-            return str_or_iter
-
-        if len(s) != 0 and not s[:2].isupper():
-            s = s[0].lower() + s[1:]
-        return regex.sub(lambda m: m.group(0)[-1].upper(), s)
+        ret = self.post("/data/v2/insert_job", post_data)
+        group_id = ret.get("job_group_id")
+        return ret["job_id"], group_id
 
     def get_job_detail(self, job_id):
         try:
             ret = self.get(
-                f"brm/v1/job/{job_id}",
+                f"data/job/{job_id}",
             )
         except RequestInfoException as e:
             if e.args[0] != 200:
@@ -271,45 +197,7 @@ class Client:
         return ret
 
     def get_log(self, job_id):
-        url, size = self._get_job_log(job_id)
-        if not url:
-            return ""
-        if self.last_log_offset >= size:
-            return ""
-        resp = requests.get(url, headers={"Range": f"bytes={self.last_log_offset}-"})
-        self.last_log_offset += len(resp.content)
-        return resp.content.decode("utf-8")
-
-    def _get_job_log(self, job_id):
-        ret = self.get(
-            f"/brm/v1/job/{job_id}/log",
-            params={
-                "pageSize": 1,
-            },
-        )
-        d = ret.get("logFiles")
-        if d and len(d) != 0:
-            return d[0]["url"], d[0]["size"]
-        return None, 0
-
-    def get_tasks_list(self, group_id, per_page=30):
-        result = []
-        page = 0
-        while True:
-            ret = self.get(
-                "/brm/v1/job/list",
-                params={
-                    "groupId": group_id,
-                    "page": page,
-                    "pageSize": per_page,
-                },
-            )
-            if len(ret["items"]) == 0:
-                break
-            for each in ret["items"]:
-                result.append(each)
-            page += 1
-        return result
+        return ""
 
     def get_job_result_url(self, job_id):
         try:
@@ -318,9 +206,9 @@ class Client:
             if "job_group_id" in job_id:
                 ids = job_id.split(":job_group_id:")
                 job_id, _ = int(ids[0]), int(ids[1])
-            ret = self.get(f"/brm/v1/job/{job_id}", {})
-            if "resultUrl" in ret and len(ret["resultUrl"]) != 0:
-                return ret.get("resultUrl")
+            ret = self.get(f"/data/job/{job_id}", {})
+            if "result_url" in ret and len(ret["result_url"]) != 0:
+                return ret.get("result_url")
             else:
                 return None
         except ValueError as e:
@@ -334,7 +222,7 @@ class Client:
             if "job_group_id" in job_id:
                 ids = job_id.split(":job_group_id:")
                 job_id, _ = int(ids[0]), int(ids[1])
-            ret = self.post(f"/brm/v1/job/kill/{job_id}", {})
+            ret = self.post(f"/data/job/{job_id}/kill", {})
             return ret
         except ValueError as e:
             dlog.error(e, stack_info=ENABLE_STACK)
