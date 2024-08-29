@@ -125,6 +125,7 @@ class Slurm(Machine):
 
     @retry()
     def check_status(self, job):
+        ignore_error = job.resources.kwargs.get("ignore_error", False)
         job_id = job.job_id
         if job_id == "":
             return JobStatus.unsubmitted
@@ -133,7 +134,7 @@ class Slurm(Machine):
         if ret != 0:
             err_str = stderr.read().decode("utf-8")
             if "Invalid job id specified" in err_str:
-                if self.check_finish_tag(job):
+                if ignore_error or self.check_finish_tag(job):
                     dlog.info(f"job: {job.job_hash} {job.job_id} finished")
                     return JobStatus.finished
                 else:
@@ -181,7 +182,7 @@ class Slurm(Machine):
             "ST",
             "TO",
         ]:
-            if self.check_finish_tag(job):
+            if ignore_error or self.check_finish_tag(job):
                 dlog.info(f"job: {job.job_hash} {job.job_id} finished")
                 return JobStatus.finished
             else:
@@ -203,6 +204,7 @@ class Slurm(Machine):
             resources subfields
         """
         doc_custom_gpu_line = "Custom GPU configuration, starting with #SBATCH"
+        doc_ignore_error = "Ignore error"
         return [
             Argument(
                 "kwargs",
@@ -214,6 +216,13 @@ class Slurm(Machine):
                         optional=True,
                         default=None,
                         doc=doc_custom_gpu_line,
+                    ),
+                    Argument(
+                        "ignore_error",
+                        str,
+                        optional=True,
+                        default=False,
+                        doc=doc_ignore_error,
                     )
                 ],
                 optional=True,

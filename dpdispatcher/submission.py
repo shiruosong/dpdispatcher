@@ -495,7 +495,8 @@ class Submission:
         self.machine.context.upload(self)
 
     def download_jobs(self):
-        self.machine.context.download(self)
+        ignore_error = self.resources.kwargs.get("ignore_error", False)
+        self.machine.context.download(self, check_exists=ignore_error, mark_failure=False)
         # for job in self.belonging_jobs:
         #     job.tag_finished()
         # self.machine.context.write_file(self.machine.finish_tag_name, write_str="")
