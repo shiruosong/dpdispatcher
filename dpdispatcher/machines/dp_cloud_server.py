@@ -150,6 +150,9 @@ class Bohrium(Machine):
             program_id=program_id,
             group_id=self.group_id,
         )
+        dlog.info(
+            f"Job link: https://bohrium.dp.tech/jobs/detail/{job_id}"
+        )
         if self.grouped:
             self.group_id = group_id
         job.job_id = str(job_id) + ":job_group_id:" + str(group_id)
@@ -203,6 +206,9 @@ class Bohrium(Machine):
                 raise RuntimeError(
                     f"cannot find job information in bohrium for job {job.job_id} {check_return} {retry_return}"
                 )
+        dlog.info(
+            f"Job status: {dp_job_status}"
+        )
 
         job_state = self.map_dp_job_state(
             dp_job_status, check_return.get("exitCode", 0), self.ignore_exit_code
