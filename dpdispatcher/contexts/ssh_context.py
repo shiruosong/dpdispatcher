@@ -784,14 +784,14 @@ class SSHContext(BaseContext):
         assert self.remote_root is not None
         self.ssh_session.ensure_alive()
         fname = pathlib.PurePath(os.path.join(self.remote_root, fname)).as_posix()
-        # to prevent old file from being overwritten but cancelled, create a temporary file first
-        # when it is fully written, rename it to the original file name
-        temp_fname = fname + "_tmp"
+        # # to prevent old file from being overwritten but cancelled, create a temporary file first
+        # # when it is fully written, rename it to the original file name
+        # temp_fname = fname + "_tmp"
         try:
-            with self.sftp.open(temp_fname, "w") as fp:
+            with self.sftp.open(fname, "w") as fp:
                 fp.write(write_str)
-            # Rename the temporary file
-            self.block_checkcall(f"mv {shlex.quote(temp_fname)} {shlex.quote(fname)}")
+            # # Rename the temporary file
+            # self.block_checkcall(f"mv {shlex.quote(temp_fname)} {shlex.quote(fname)}")
         # sftp.rename may throw OSError
         except OSError as e:
             dlog.exception(f"Error writing to file {fname}")
