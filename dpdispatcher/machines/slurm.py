@@ -10,6 +10,7 @@ from dpdispatcher.machine import Machine, script_command_template
 from dpdispatcher.utils.job_status import JobStatus
 from dpdispatcher.utils.utils import (
     RetrySignal,
+    InfiniteRetrySignal,
     customized_script_header_template,
     retry,
 )
@@ -106,8 +107,8 @@ class Slurm(Machine):
                 or "Slurm temporarily unable to accept job, sleeping and retrying"
                 in err_str
             ):
-                # job number exceeds, skip the submitting
-                return ""
+                # job number exceeds, retry infinite times
+                raise InfiniteRetrySignal(f"Slurm job limit reached: {err_str}")
             raise RuntimeError(
                 "command %s fails to execute\nerror message:%s\nreturn code %d\n"
                 % (command, err_str, ret)

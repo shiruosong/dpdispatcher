@@ -144,10 +144,15 @@ class RetrySignal(Exception):
     """Exception to give a signal to retry the function."""
 
 
+class InfiniteRetrySignal(Exception):
+    """Exception to give a signal to infinitely retry the function."""
+
+
 def retry(
     max_retry: int = 3,
     sleep: Union[int, float] = 60,
     catch_exception: Type[BaseException] = RetrySignal,
+    no_count_exception: Optional[Type[BaseException]] = InfiniteRetrySignal,
 ) -> Callable:
     """Retry the function until it succeeds or fails for certain times.
 
@@ -159,6 +164,8 @@ def retry(
         The sleep time in seconds.
     catch_exception : Exception, default=Exception
         The exception to catch.
+    no_count_exception : Exception, optional
+        The exception that triggers retry without counting towards max_retry.
 
     Returns
     -------
@@ -188,6 +195,12 @@ def retry(
                     dlog.warning("Sleep %s s and retry...", sleep)
                     time.sleep(sleep)
                     current_retry += 1
+                except (no_count_exception,) as e:
+                    errors.append(e)
+                    dlog.exception("Failed to run %s: %s", func.__name__, e)
+                    # sleep certain seconds
+                    dlog.warning("Sleep %s s and retry...", sleep)
+                    time.sleep(sleep)
             else:
                 # raise all exceptions
                 raise RuntimeError(
