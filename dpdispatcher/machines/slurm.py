@@ -103,6 +103,7 @@ class Slurm(Machine):
             elif (
                 "Job violates accounting/QOS policy" in err_str
                 # the number of jobs exceeds DEFAULT_MAX_JOB_COUNT (by default 10000)
+                or "Batch job submission failed" in err_file
                 or "Slurm temporarily unable to accept job, sleeping and retrying"
                 in err_str
             ):
