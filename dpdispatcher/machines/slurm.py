@@ -72,7 +72,7 @@ class Slurm(Machine):
             )
         return slurm_script_header
 
-    @retry()
+    @retry(max_retry=None, sleep=60)
     def do_submit(self, job):
         script_file_name = job.script_file_name
         script_str = self.gen_script(job)
@@ -95,7 +95,7 @@ class Slurm(Machine):
                 "Socket timed out on send/recv operation" in err_str
                 or "Unable to contact slurm controller" in err_str
             ):
-                # server network error, retry 3 times
+                # server network error, retry infinite times
                 raise RetrySignal(
                     "Get error code %d in submitting with job: %s . message: %s"
                     % (ret, job.job_hash, err_str)
@@ -107,8 +107,8 @@ class Slurm(Machine):
                 or "Slurm temporarily unable to accept job, sleeping and retrying"
                 in err_str
             ):
-                # job number exceeds, skip the submitting
-                return ""
+                # job number exceeds, retry infinite times
+                raise RetrySignal(f"Slurm job limit reached: {err_str}")
             raise RuntimeError(
                 "command %s fails to execute\nerror message:%s\nreturn code %d\n"
                 % (command, err_str, ret)
