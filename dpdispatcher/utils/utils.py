@@ -173,7 +173,7 @@ def retry(
     """
 
     def decorator(func):
-        assert max_retry > 0, "max_retry must be greater than 0"
+        assert max_retry is None or max_retry > 0, "max_retry must be None or > 0"
 
         def wrapper(*args, **kwargs):
             current_retry = 0
