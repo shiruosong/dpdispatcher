@@ -39,7 +39,7 @@ class JH_UniScheduler(Machine):
         custom_gpu_line = resources.kwargs.get("custom_gpu_line", None)
         if not custom_gpu_line:
             script_header_dict["JH_UniScheduler_number_gpu_line"] = (
-                "" f"#JSUB -gpgpu {resources.gpu_per_node}"
+                f"#JSUB -gpgpu {resources.gpu_per_node}"
             )
         else:
             script_header_dict["JH_UniScheduler_number_gpu_line"] = custom_gpu_line
@@ -84,9 +84,6 @@ class JH_UniScheduler(Machine):
         self.context.write_file(job_id_name, job_id)
         return job_id
 
-    def default_resources(self, resources):
-        pass
-
     @retry()
     def check_status(self, job):
         try:
@@ -105,8 +102,7 @@ class JH_UniScheduler(Machine):
         elif ret != 0:
             # just retry when any unknown error raised.
             raise RetrySignal(
-                "Get error code %d in checking status with job: %s . message: %s"
-                % (ret, job.job_hash, err_str)
+                f"Get error code {ret} in checking status with job: {job.job_hash} . message: {err_str}"
             )
         status_out = stdout.read().decode("utf-8").split("\n")
         if len(status_out) < 2:

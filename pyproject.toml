@@ -51,9 +51,9 @@ dpdisp = "dpdispatcher.dpdisp:main"
 docs = [
     'sphinx',
     'myst-parser',
-    'sphinx_rtd_theme>=1.0.0rc1',
+    'sphinx-book-theme',
     'numpydoc',
-    'deepmodeling_sphinx>=0.1.1',
+    'deepmodeling-sphinx>=0.3.0',
     'dargs>=0.3.1',
     'sphinx-argparse<0.5.0',
 ]
@@ -82,7 +82,7 @@ exclude = [
 [tool.isort]
 profile = "black"
 
-[tool.ruff]
+[tool.ruff.lint]
 select = [
     "E", # errors
     "F", # pyflakes
@@ -110,7 +110,6 @@ ignore = [
     "D401", # TODO: first line should be in imperative mood
     "D404", # TODO: first word of the docstring should not be This
 ]
-ignore-init-module-imports = true
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "numpy"

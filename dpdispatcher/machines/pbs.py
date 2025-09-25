@@ -69,9 +69,6 @@ class PBS(Machine):
         self.context.write_file(job_id_name, job_id)
         return job_id
 
-    def default_resources(self, resources):
-        pass
-
     def check_status(self, job):
         job_id = job.job_id
         if job_id == "":
@@ -87,8 +84,7 @@ class PBS(Machine):
                     return JobStatus.terminated
             else:
                 raise RuntimeError(
-                    "status command %s fails to execute. erro info: %s return code %d"
-                    % (command, err_str, ret)
+                    f"status command {command} fails to execute. erro info: {err_str} return code {ret}"
                 )
         status_line = stdout.read().decode("utf-8").split("\n")[-2]
         status_word = status_line.split()[-2]
@@ -138,8 +134,7 @@ class Torque(PBS):
                     return JobStatus.terminated
             else:
                 raise RuntimeError(
-                    "status command %s fails to execute. erro info: %s return code %d"
-                    % (command, err_str, ret)
+                    f"status command {command} fails to execute. erro info: {err_str} return code {ret}"
                 )
         status_line = stdout.read().decode("utf-8").split("\n")[-2]
         status_word = status_line.split()[-2]
@@ -257,10 +252,8 @@ class SGE(PBS):
         self.context.write_file(job_id_name, job_id)
         return job_id
 
-    def default_resources(self, resources):
-        pass
-
     def check_status(self, job):
+        ### https://softpanorama.org/HPC/Grid_engine/Queues/queue_states.shtml
         job_id = job.job_id
         status_line = None
         if job_id == "":
@@ -294,10 +287,12 @@ class SGE(PBS):
         else:
             status_word = status_line.split()[4]
             # dlog.info (status_word)
-            if status_word in ["qw"]:
+            if status_word in ["qw", "hqw", "t"]:
                 return JobStatus.waiting
-            elif status_word in ["r"]:
+            elif status_word in ["r", "Rr"]:
                 return JobStatus.running
+            elif status_word in ["Eqw", "dr", "dt"]:
+                return JobStatus.terminated
             else:
                 return JobStatus.unknown
 

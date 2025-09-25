@@ -1,8 +1,12 @@
 name: Python package
 
-on:
-  - push
-  - pull_request
+'on':
+  push:
+    branches-ignore:
+      - 'copilot/**'
+      - 'dependabot/**'
+      - 'pre-commit-ci-update-config'
+  pull_request:
 
 jobs:
   test:
@@ -16,7 +20,7 @@ jobs:
           - '3.11'
           - '3.12'
         platform:
-          - ubuntu-latest
+          - ubuntu-22.04
           - macos-latest
           - windows-latest
         exclude:  # Apple Silicon ARM64 does not support Python < v3.8
@@ -26,15 +30,17 @@ jobs:
           - python-version: "3.7"
             platform: macos-13
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-    - run: curl -LsSf https://astral.sh/uv/install.sh | sh
-      if: matrix.platform != 'windows-latest'
-    - run: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-      if: matrix.platform == 'windows-latest'
+    - uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: |
+          **/requirements*.txt
+          **/pyproject.toml
     - run: uv pip install --system .[test] coverage
     - name: Test
       run: |
@@ -42,7 +48,7 @@ jobs:
         python -m coverage run -p --source=./dpdispatcher -m dpdispatcher -h
         python -m coverage combine
         python -m coverage report
-    - uses: codecov/codecov-action@v4
+    - uses: codecov/codecov-action@v5
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   pass:
