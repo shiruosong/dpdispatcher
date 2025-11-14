@@ -94,6 +94,7 @@ class Slurm(Machine):
             if (
                 "Socket timed out on send/recv operation" in err_str
                 or "Unable to contact slurm controller" in err_str
+                or "slurm_load_jobs error" in err_str
             ):
                 # server network error, retry infinite times
                 raise RetrySignal(
@@ -119,7 +120,7 @@ class Slurm(Machine):
         self.context.write_file(job_id_name, job_id)
         return job_id
 
-    @retry()
+    @retry(max_retry=None, sleep=3)
     def check_status(self, job):
         ignore_error = job.resources.kwargs.get("ignore_error", False)
         job_id = job.job_id
@@ -139,6 +140,7 @@ class Slurm(Machine):
                 "Socket timed out on send/recv operation" in err_str
                 or "Unable to contact slurm controller" in err_str
                 or "Invalid user for SlurmUser" in err_str
+                or "slurm_load_jobs error" in err_str
             ):
                 # retry 3 times
                 raise RetrySignal(
